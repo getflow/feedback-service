@@ -7,6 +7,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/rs/cors"
 )
 
 type Feedback struct {
@@ -32,9 +34,11 @@ func (feedback *Feedback) Format() string {
 }
 
 func main() {
+	mux := http.NewServeMux()
+
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", os.Getenv("FB_TOKEN"))
 
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("/feedback", func(writer http.ResponseWriter, request *http.Request) {
 		var feedback *Feedback
 
 		err := json.NewDecoder(request.Body).Decode(&feedback)
@@ -73,7 +77,9 @@ func main() {
 		return
 	})
 
-	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", os.Getenv("FB_PORT")), nil)
+	handler := cors.Default().Handler(mux)
+
+	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", os.Getenv("FB_PORT")), handler)
 	if err != nil {
 		panic(err)
 	}
