@@ -2,7 +2,7 @@ ARG FB_PORT=3000
 ARG FB_TOKEN=telegram_bot_token
 ARG FB_CHANNEL=telegram_channel_id
 
-FROM golang:1.17.3-alpine AS build
+FROM golang:1.23.8-alpine AS build
 RUN apk --no-cache add upx git
 WORKDIR /app
 COPY go.mod go.sum main.go /app/

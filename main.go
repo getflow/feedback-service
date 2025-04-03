@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"reflect"
-	"strings"
 
-	"github.com/rs/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 type Feedback struct {
@@ -34,53 +37,38 @@ func (feedback *Feedback) Format() string {
 }
 
 func main() {
-	mux := http.NewServeMux()
+	b, err := bot.New(os.Getenv("FB_TOKEN"))
+	if err != nil {
+		log.Fatalf("failed creating bot api object")
+	}
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", os.Getenv("FB_TOKEN"))
-
-	mux.HandleFunc("/feedback", func(writer http.ResponseWriter, request *http.Request) {
+	r := gin.Default()
+	r.POST("/feedback", func(c *gin.Context) {
 		var feedback *Feedback
-
-		err := json.NewDecoder(request.Body).Decode(&feedback)
-		if err != nil {
-			writer.WriteHeader(400)
-			_, _ = writer.Write([]byte("{\"status\":\"error while processing a request\"}"))
+		if err := json.NewDecoder(c.Request.Body).Decode(&feedback); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status": "error while processing a request",
+			})
 			return
 		}
 
-		payload := strings.NewReader(fmt.Sprintf(
-			"{\"text\":\"%s\",\"parse_mode\":\"HTML\",\"chat_id\":\"%s\"}",
-			feedback.Format(), os.Getenv("FB_CHANNEL")),
-		)
+		text := feedback.Format()
 
-		telegram, err := http.Post(url, "application/json", payload)
-		if err != nil {
-			writer.WriteHeader(500)
-			_, _ = writer.Write([]byte("{\"status\":\"error while sending internal request\"}"))
-			return
-		}
-		if telegram.StatusCode != 200 {
-			writer.WriteHeader(500)
-			_, _ = writer.Write([]byte("{\"status\":\"internal query returned unexpected result\"}"))
+		if _, err = b.SendMessage(context.Background(), &bot.SendMessageParams{
+			ChatID:    os.Getenv("FB_CHANNEL"),
+			Text:      text,
+			ParseMode: models.ParseModeHTML,
+		}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "error while sending internal request",
+			})
 			return
 		}
 
-		response, err := json.Marshal(feedback)
-		if err != nil {
-			writer.WriteHeader(500)
-			_, _ = writer.Write([]byte("{\"status\":\"error while generating response\"}"))
-			return
-		}
-
-		writer.WriteHeader(200)
-		_, _ = writer.Write(response)
-		return
+		c.JSON(http.StatusOK, feedback)
 	})
 
-	handler := cors.Default().Handler(mux)
+	log.Printf("Starting application....")
 
-	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", os.Getenv("FB_PORT")), handler)
-	if err != nil {
-		panic(err)
-	}
+	r.Run(fmt.Sprintf("0.0.0.0:%s", os.Getenv("FB_PORT")))
 }
