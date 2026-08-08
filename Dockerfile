@@ -8,6 +8,7 @@ RUN go mod download && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -v ./... &&
 FROM alpine:3.11 AS runtime
 
 ENV FB_PORT=3000
+ENV GIN_MODE="release"
 
 EXPOSE 3000
 
