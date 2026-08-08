@@ -10,8 +10,9 @@ import (
 	"reflect"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
+
+	"github.com/getflow/feedback-service/internal/bot"
+	"github.com/getflow/feedback-service/internal/bot/models"
 )
 
 type Feedback struct {
@@ -37,9 +38,9 @@ func (feedback *Feedback) Format() string {
 }
 
 func main() {
-	b, err := bot.New(os.Getenv("FB_TOKEN"))
+	b, err := bot.GetBot()
 	if err != nil {
-		log.Fatalf("failed creating bot api object")
+		log.Fatalf("failed creating bot api object: %s", err)
 	}
 
 	r := gin.Default()
@@ -54,11 +55,11 @@ func main() {
 
 		text := feedback.Format()
 
-		if _, err = b.SendMessage(context.Background(), &bot.SendMessageParams{
+		if err = b.SendCommand(context.Background(), &models.Command{
 			ChatID:    os.Getenv("FB_CHANNEL"),
 			Text:      text,
-			ParseMode: models.ParseModeHTML,
 		}); err != nil {
+			log.Printf("error while sending internal request: %s", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": "error while sending internal request",
 			})
