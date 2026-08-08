@@ -1,8 +1,3 @@
-ARG FB_PORT=3000
-ARG FB_TOKEN=telegram_bot_token
-ARG FB_CHANNEL=telegram_channel_id
-ARG FB_BOT_TYPE="BOT_TG"
-
 FROM golang:1.24-alpine AS build
 RUN apk --no-cache add upx git
 WORKDIR /app
@@ -12,10 +7,7 @@ RUN go mod download && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -v ./... &&
 
 FROM alpine:3.11 AS runtime
 
-ENV FB_PORT=$FB_PORT
-ENV FB_TOKEN=$FB_TOKEN
-ENV FB_CHANNEL=$FB_CHANNEL
-ENV FB_BOT_TYPE=$FB_BOT_TYPE
+ENV FB_PORT=3000
 
 EXPOSE 3000
 
